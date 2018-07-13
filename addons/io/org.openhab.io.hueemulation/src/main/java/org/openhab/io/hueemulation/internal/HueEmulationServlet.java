@@ -87,6 +87,7 @@ public class HueEmulationServlet extends HttpServlet {
     private static final String CHARSET = "utf-8";
     private static final String NEW_CLIENT_RESP = "[{\"success\":{\"username\": \"%s\"}}]";
     private static final String STATE_RESP = "[{\"success\":{\"/lights/%s/state/on\":%s}}]";
+    private static final String CONFIG_RESP = "{\"name\":\"openHAB Hue Emulation Service\",\"datastoreversion\":\"59\",\"swversion\":\"01041302\",\"apiversion\":\"1.16.0\"}";
     private static final File USER_FILE = new File(
             ConfigConstants.getUserDataFolder() + File.separator + "hueemulation" + File.separator + "usernames");
     private static final File UDN_FILE = new File(
@@ -230,7 +231,7 @@ public class HueEmulationServlet extends HttpServlet {
             // request for API key
             if (path.equals(PATH) || path.equals(PATH + "/")) {
                 if (pairingEnabled) {
-                    apiConfig(req, out);
+                    apiAddUser(req, out);
                 } else {
                     apiServerError(req, out, HueErrorResponse.UNAUTHORIZED,
                             "Not Authorized. Pair button must be pressed to add users.");
@@ -243,6 +244,17 @@ public class HueEmulationServlet extends HttpServlet {
 
             if (pathParts.length > 0) {
                 String userName = pathParts[0];
+
+                if ("config".equals(pathParts[0]) || (pathParts.length > 1 && "config".equals(pathParts[1]))) {
+                    /**
+                     * /api/config
+                     * /api/{username}/config
+                     *
+                     * Some apps omit the username part of the path, so both formats are supported for maximum
+                     */
+                    apiConfig(req, out);
+                    return;
+                }
 
                 /**
                  * Some devices (Amazon Echo) seem to rely on the bridge to add an unknown user if pairing is on
@@ -418,7 +430,7 @@ public class HueEmulationServlet extends HttpServlet {
     /**
      * Hue API call to configure a user
      */
-    public void apiConfig(HttpServletRequest req, PrintWriter out) throws IOException {
+    public void apiAddUser(HttpServletRequest req, PrintWriter out) throws IOException {
         if (!req.getMethod().equals(METHOD_POST)) {
             apiServerError(req, out, HueErrorResponse.METHOD_NOT_AVAILABLE, "Only POST allowed for this resource");
             return;
@@ -431,6 +443,15 @@ public class HueEmulationServlet extends HttpServlet {
         }
         addUser(user.username);
         String response = String.format(NEW_CLIENT_RESP, user.username);
+        out.write(response);
+        out.close();
+    }
+
+    /**
+     * Hue API call to get the bridge configuration
+     */
+    public void apiConfig(HttpServletRequest req, PrintWriter out) throws IOException {
+        String response = String.format(CONFIG_RESP);
         out.write(response);
         out.close();
     }
