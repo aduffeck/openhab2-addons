@@ -8,36 +8,47 @@
  */
 package org.openhab.io.hueemulation.internal.api;
 
+import java.util.ArrayList;
+
+import org.openhab.io.hueemulation.internal.api.HueErrorResponse.HueErrorResponseElement;
+
 /**
  * Hue API error response object
- * 
+ *
  * @author Dan Cunningham
  */
-public class HueErrorResponse {
+public class HueErrorResponse extends ArrayList<HueErrorResponseElement> {
     public static final int UNAUTHORIZED = 1;
     public static final int NOT_AVAILABLE = 3;
     public static final int METHOD_NOT_AVAILABLE = 4;
     public static final int LINK_BUTTON_NOT_PRESSED = 101;
     public static final int INTERNAL_ERROR = 901;
 
-    public HueErrorMessage error;
-
     public HueErrorResponse(int type, String address, String description) {
         super();
-        this.error = new HueErrorMessage(type, address, description);
+        this.add(new HueErrorResponseElement(type, address, description));
     }
 
-    public class HueErrorMessage {
-        public int type;
-        public String address;
-        public String description;
+    public class HueErrorResponseElement {
+        public HueErrorMessage error;
 
-        public HueErrorMessage(int type, String address, String description) {
+        public HueErrorResponseElement(int type, String address, String description) {
             super();
-            this.type = type;
-            this.address = address;
-            this.description = description;
+            this.error = new HueErrorMessage(type, address, description);
         }
 
+        public class HueErrorMessage {
+            public int type;
+            public String address;
+            public String description;
+
+            public HueErrorMessage(int type, String address, String description) {
+                super();
+                this.type = type;
+                this.address = address;
+                this.description = description;
+            }
+
+        }
     }
 }
