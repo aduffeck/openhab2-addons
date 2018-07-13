@@ -46,6 +46,7 @@ import org.eclipse.smarthome.core.items.events.ItemEventFactory;
 import org.eclipse.smarthome.core.library.types.DecimalType;
 import org.eclipse.smarthome.core.library.types.HSBType;
 import org.eclipse.smarthome.core.library.types.OnOffType;
+import org.eclipse.smarthome.core.library.types.PercentType;
 import org.eclipse.smarthome.core.types.Command;
 import org.eclipse.smarthome.core.types.State;
 import org.eclipse.smarthome.core.types.TypeParser;
@@ -86,8 +87,8 @@ public class HueEmulationServlet extends HttpServlet {
     private static final String APPLICATION_JSON = "application/json";
     private static final String CHARSET = "utf-8";
     private static final String NEW_CLIENT_RESP = "[{\"success\":{\"username\": \"%s\"}}]";
-    private static final String STATE_RESP = "[{\"success\":{\"/lights/%s/state/on\":%s}}]";
     private static final String CONFIG_RESP = "{\"name\":\"openHAB Hue Emulation Service\",\"datastoreversion\":\"59\",\"swversion\":\"01041302\",\"apiversion\":\"1.16.0\"}";
+    private static final String SUCCESS_ELEMENT = "{\"success\":{\"%s\":%s}}";
     private static final File USER_FILE = new File(
             ConfigConstants.getUserDataFolder() + File.separator + "hueemulation" + File.separator + "usernames");
     private static final File UDN_FILE = new File(
@@ -340,28 +341,62 @@ public class HueEmulationServlet extends HttpServlet {
             logger.debug("API command: {}", json);
             JsonObject api_command = new Gson().fromJson(json, JsonObject.class);
 
-            HueState state = gson.fromJson(json, HueState.class);
-            HSBType hsb = state.toHSBType();
-            logger.debug("HuState {}", state);
-            logger.debug("HSBType {}", hsb);
+            HueState hue_state = gson.fromJson(json, HueState.class);
+            HSBType hue_hsb = hue_state.toHSBType();
+
             Command command = null;
+            ArrayList<String> changes = new ArrayList<>();
 
             if (api_command.has("on") && !api_command.get("on").getAsBoolean()) {
-                // Explicit shutoff command
+                // Explicit shut off command
                 command = TypeParser.parseCommand(item.getAcceptedCommandTypes(), "0");
                 if (command == null) {
                     command = TypeParser.parseCommand(item.getAcceptedCommandTypes(), "OFF");
                 }
-            } else if (api_command.has("bri") || api_command.has("hue") || api_command.has("sat")) {
-                // if state is on then send HSB, Brightness or ON
-                if (item.getAcceptedCommandTypes().contains(HSBType.class)) {
-                    command = hsb;
+                changes.add(String.format(SUCCESS_ELEMENT, "/lights/" + id + "/state/on", "false"));
+            } else if (api_command.has("on") || api_command.has("bri") || api_command.has("hue")
+                    || api_command.has("sat")) {
+                if (item.getAcceptedCommandTypes().contains(HSBType.class)
+                        && (api_command.has("bri") || api_command.has("hue") || api_command.has("sat"))) {
+                    // Item supports HSB
+                    HSBType state = item.getStateAs(HSBType.class);
+                    DecimalType hue = state.getHue();
+                    PercentType sat = state.getSaturation();
+                    PercentType bri = state.getBrightness();
+
+                    logger.debug("HuState {}", hue_state);
+                    logger.debug("HSBType {}", state);
+
+                    if (api_command.has("bri")) {
+                        bri = hue_hsb.getBrightness();
+                        changes.add(String.format(SUCCESS_ELEMENT, "/lights/" + id + "/state/bri", hue_state.bri));
+                    }
+                    if (api_command.has("hue")) {
+                        hue = hue_hsb.getHue();
+                        changes.add(String.format(SUCCESS_ELEMENT, "/lights/" + id + "/state/hue", hue_state.hue));
+                    }
+                    if (api_command.has("sat")) {
+                        sat = hue_hsb.getSaturation();
+                        changes.add(String.format(SUCCESS_ELEMENT, "/lights/" + id + "/state/sat", hue_state.sat));
+                    }
+                    if (api_command.has("on")) {
+                        changes.add(String.format(SUCCESS_ELEMENT, "/lights/" + id + "/state/on", true));
+                    }
+
+                    command = new HSBType(hue, sat, bri);
                 } else {
                     // try and set the brightness level first
-                    command = TypeParser.parseCommand(item.getAcceptedCommandTypes(), hsb.getBrightness().toString());
+                    command = TypeParser.parseCommand(item.getAcceptedCommandTypes(),
+                            hue_hsb.getBrightness().toString());
                     if (command == null) {
                         // if the item does not accept a number or String type, try ON
                         command = TypeParser.parseCommand(item.getAcceptedCommandTypes(), "ON");
+                    }
+                    if (api_command.has("on")) {
+                        changes.add(String.format(SUCCESS_ELEMENT, "/lights/" + id + "/state/on", true));
+                    }
+                    if (api_command.has("bri")) {
+                        changes.add(String.format(SUCCESS_ELEMENT, "/lights/" + id + "/state/bri", hue_state.bri));
                     }
                 }
             } else {
@@ -369,9 +404,11 @@ public class HueEmulationServlet extends HttpServlet {
             }
 
             if (command != null) {
+                String response = changes.toString();
                 logger.debug("sending {} to {}", command, item.getName());
+                logger.debug("API Response: {}", response);
                 eventPublisher.post(ItemEventFactory.createCommandEvent(item.getName(), command));
-                out.write(String.format(STATE_RESP, id, String.valueOf(state.on)));
+                out.write(response);
             } else {
                 logger.error("Item {} does not accept Decimal, ON/OFF or String types", item.getName());
                 apiServerError(req, out, HueErrorResponse.INTERNAL_ERROR,
@@ -451,8 +488,7 @@ public class HueEmulationServlet extends HttpServlet {
      * Hue API call to get the bridge configuration
      */
     public void apiConfig(HttpServletRequest req, PrintWriter out) throws IOException {
-        String response = String.format(CONFIG_RESP);
-        out.write(response);
+        out.write(CONFIG_RESP);
         out.close();
     }
 
