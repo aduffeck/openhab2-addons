@@ -340,7 +340,7 @@ public class HueEmulationServlet extends HttpServlet {
                 if (command == null) {
                     command = TypeParser.parseCommand(item.getAcceptedCommandTypes(), "OFF");
                 }
-            } else {
+            } else if (api_command.has("bri") || api_command.has("hue") || api_command.has("sat")) {
                 // if state is on then send HSB, Brightness or ON
                 if (item.getAcceptedCommandTypes().contains(HSBType.class)) {
                     command = hsb;
@@ -352,6 +352,8 @@ public class HueEmulationServlet extends HttpServlet {
                         command = TypeParser.parseCommand(item.getAcceptedCommandTypes(), "ON");
                     }
                 }
+            } else {
+                logger.debug("Unsupported command: {}", api_command);
             }
 
             if (command != null) {
