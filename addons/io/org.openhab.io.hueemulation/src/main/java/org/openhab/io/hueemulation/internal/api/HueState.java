@@ -65,9 +65,11 @@ public class HueState {
         int brightness = 0;
         if (this.on || this.bri > 0) {
             // if on but brightness is less then 1, set HSB brightness to 100, otherwise convert Hue brightness
-            brightness = this.bri < 1 ? 100 : (int) (this.bri / 255.0 * 100);
+            brightness = this.bri < 1 ? 100 : (int) (this.bri / 254.0 * 100);
         }
-        return new HSBType(new DecimalType(this.hue), new PercentType(this.sat), new PercentType(brightness));
+        int hue = (int) (this.hue / 65535.0 * 360);
+        int sat = (int) (this.sat / 254.0 * 100);
+        return new HSBType(new DecimalType(hue), new PercentType(sat), new PercentType(brightness));
     }
 
     @Override
