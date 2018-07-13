@@ -10,6 +10,8 @@ package org.openhab.io.hueemulation.internal.api;
 
 import java.util.Map;
 
+import com.google.gson.JsonObject;
+
 /**
  * Hue API data store object
  *
@@ -18,4 +20,11 @@ import java.util.Map;
  */
 public class HueDataStore {
     public Map<Integer, HueDevice> lights;
+    // Add stub fields for compatibility
+    public JsonObject groups = new JsonObject();
+    public JsonObject schedules = new JsonObject();
+    public JsonObject config = new JsonObject();
+    public JsonObject scenes = new JsonObject();
+    public JsonObject sensors = new JsonObject();
+    public JsonObject rules = new JsonObject();
 }
