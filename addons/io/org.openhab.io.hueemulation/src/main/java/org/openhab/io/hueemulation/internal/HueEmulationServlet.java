@@ -233,7 +233,7 @@ public class HueEmulationServlet extends HttpServlet {
                 if (pairingEnabled) {
                     apiAddUser(req, out);
                 } else {
-                    apiServerError(req, out, HueErrorResponse.UNAUTHORIZED,
+                    apiServerError(req, out, HueErrorResponse.LINK_BUTTON_NOT_PRESSED,
                             "Not Authorized. Pair button must be pressed to add users.");
                 }
                 return;
