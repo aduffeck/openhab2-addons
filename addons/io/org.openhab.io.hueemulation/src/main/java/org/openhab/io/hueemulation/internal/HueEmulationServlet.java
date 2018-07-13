@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -60,6 +61,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
@@ -321,12 +323,24 @@ public class HueEmulationServlet extends HttpServlet {
         try {
             // will throw exception if not found
             Item item = itemRegistry.getItem(deviceMap.get(new Integer(id)));
-            HueState state = gson.fromJson(req.getReader(), HueState.class);
+
+            String json = req.getReader().lines().collect(Collectors.joining(""));
+            logger.debug("API command: {}", json);
+            JsonObject api_command = new Gson().fromJson(json, JsonObject.class);
+
+            HueState state = gson.fromJson(json, HueState.class);
             HSBType hsb = state.toHSBType();
             logger.debug("HuState {}", state);
             logger.debug("HSBType {}", hsb);
             Command command = null;
-            if (hsb.getBrightness().intValue() > 0) {
+
+            if (api_command.has("on") && !api_command.get("on").getAsBoolean()) {
+                // Explicit shutoff command
+                command = TypeParser.parseCommand(item.getAcceptedCommandTypes(), "0");
+                if (command == null) {
+                    command = TypeParser.parseCommand(item.getAcceptedCommandTypes(), "OFF");
+                }
+            } else {
                 // if state is on then send HSB, Brightness or ON
                 if (item.getAcceptedCommandTypes().contains(HSBType.class)) {
                     command = hsb;
@@ -337,12 +351,6 @@ public class HueEmulationServlet extends HttpServlet {
                         // if the item does not accept a number or String type, try ON
                         command = TypeParser.parseCommand(item.getAcceptedCommandTypes(), "ON");
                     }
-                }
-            } else {
-                // if state is off, then send 0 or 0FF
-                command = TypeParser.parseCommand(item.getAcceptedCommandTypes(), "0");
-                if (command == null) {
-                    command = TypeParser.parseCommand(item.getAcceptedCommandTypes(), "OFF");
                 }
             }
 
