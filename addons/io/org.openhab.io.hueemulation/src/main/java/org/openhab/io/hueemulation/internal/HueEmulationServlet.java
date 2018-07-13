@@ -538,20 +538,24 @@ public class HueEmulationServlet extends HttpServlet {
     private HueDevice itemToDevice(Item item, Integer key) {
         State itemState = item.getState();
         HueState hueState;
+        HueDevice.Model model = HueDevice.ON_OFF_UNIT;
         if (itemState instanceof HSBType) {
             HSBType color = (HSBType) itemState;
             hueState = new HueState(color);
+            model = HueDevice.EXTENDED_COLOR_LIGHT;
         } else if (itemState instanceof DecimalType) {
-            short bri = (short) ((((DecimalType) itemState).intValue() * 255) / 100);
+            short bri = (short) ((((DecimalType) itemState).intValue() * 254) / 100);
             hueState = new HueState(bri);
+            model = HueDevice.DIMMABLE_LIGHT;
         } else if (itemState instanceof OnOffType) {
-            short bri = (short) (((OnOffType) itemState) == OnOffType.ON ? 255 : 0);
+            short bri = (short) (((OnOffType) itemState) == OnOffType.ON ? 254 : 0);
             hueState = new HueState(bri);
+            model = HueDevice.ON_OFF_UNIT;
         } else {
             hueState = new HueState((short) 0);
         }
 
-        HueDevice d = new HueDevice(hueState, item.getLabel(), key);
+        HueDevice d = new HueDevice(hueState, item.getLabel(), key, model);
         return d;
     }
 
