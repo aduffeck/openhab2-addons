@@ -17,8 +17,8 @@ public enum FanModeType {
 
     SILENT(38, "Silent"),
     STANDARD(60, "Standard"),
-    POWER(77, "Power"),
-    FULL(90, "Full"),
+    POWER(90, "Power"),
+    FULL(100, "Full"),
     CUSTOM(-1, "Custom");
 
     private final int id;
